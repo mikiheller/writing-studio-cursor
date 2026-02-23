@@ -1,13 +1,35 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Save } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { ArrowLeft, Save, ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { Project, FORMAT_LABELS, STATUS_LABELS, STATUS_COLORS, ProjectStatus } from "@/lib/types";
-import { getProject, saveProject } from "@/lib/store";
+import { v4 as uuidv4 } from "uuid";
+import {
+  Project,
+  FORMAT_LABELS,
+  STATUS_LABELS,
+  STATUS_COLORS,
+  ProjectStatus,
+  ChatThread,
+  ChatMessage,
+} from "@/lib/types";
+import {
+  getProject,
+  saveProject,
+  getProjectChatThreads,
+  saveChatThread,
+} from "@/lib/store";
+import Editor from "@/components/Editor";
+import ChatPanel from "@/components/ChatPanel";
 
-const statuses: ProjectStatus[] = ["idea", "drafting", "editing", "ready", "published"];
+const statuses: ProjectStatus[] = [
+  "idea",
+  "drafting",
+  "editing",
+  "ready",
+  "published",
+];
 
 export default function WritePage() {
   const params = useParams();
@@ -15,6 +37,9 @@ export default function WritePage() {
   const [project, setProject] = useState<Project | null>(null);
   const [content, setContent] = useState("");
   const [saved, setSaved] = useState(true);
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     const p = getProject(params.id as string);
@@ -24,14 +49,50 @@ export default function WritePage() {
     }
     setProject(p);
     setContent(p.content);
+
+    const projectThreads = getProjectChatThreads(p.id);
+    setThreads(projectThreads);
+    if (projectThreads.length > 0) {
+      setActiveThreadId(projectThreads[0].id);
+    }
   }, [params.id, router]);
 
-  function handleSave() {
+  const handleSave = useCallback(() => {
     if (!project) return;
-    const updated = { ...project, content, updatedAt: new Date().toISOString() };
+    const updated = {
+      ...project,
+      content,
+      updatedAt: new Date().toISOString(),
+    };
     saveProject(updated);
     setProject(updated);
     setSaved(true);
+  }, [project, content]);
+
+  useEffect(() => {
+    if (!project) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleSave, project]);
+
+  function handleContentUpdate(html: string) {
+    setContent(html);
+    setSaved(false);
+    if (project && project.status === "idea") {
+      const updated = {
+        ...project,
+        status: "drafting" as ProjectStatus,
+        updatedAt: new Date().toISOString(),
+      };
+      saveProject(updated);
+      setProject(updated);
+    }
   }
 
   function handleStatusChange(status: ProjectStatus) {
@@ -41,34 +102,119 @@ export default function WritePage() {
     setProject(updated);
   }
 
+  function createThread(name?: string) {
+    if (!project) return;
+    const thread: ChatThread = {
+      id: uuidv4(),
+      projectId: project.id,
+      name: name || `Chat ${threads.length + 1}`,
+      messages: [],
+      createdAt: new Date().toISOString(),
+    };
+    saveChatThread(thread);
+    const updated = [...threads, thread];
+    setThreads(updated);
+    setActiveThreadId(thread.id);
+  }
+
+  function handleSendMessage(message: string) {
+    if (!project) return;
+
+    let thread = threads.find((t) => t.id === activeThreadId);
+    if (!thread) {
+      const newThread: ChatThread = {
+        id: uuidv4(),
+        projectId: project.id,
+        name: "Chat 1",
+        messages: [],
+        createdAt: new Date().toISOString(),
+      };
+      saveChatThread(newThread);
+      setThreads((prev) => [...prev, newThread]);
+      setActiveThreadId(newThread.id);
+      thread = newThread;
+    }
+
+    const userMessage: ChatMessage = {
+      id: uuidv4(),
+      role: "user",
+      content: message,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedThread = {
+      ...thread,
+      messages: [...thread.messages, userMessage],
+    };
+    saveChatThread(updatedThread);
+    setThreads((prev) =>
+      prev.map((t) => (t.id === updatedThread.id ? updatedThread : t))
+    );
+
+    setChatLoading(true);
+    setTimeout(() => {
+      const aiMessage: ChatMessage = {
+        id: uuidv4(),
+        role: "assistant",
+        content:
+          "AI integration coming soon! Once you add your API keys in settings, I'll be able to help you write, brainstorm, and edit. I'll have full context of your draft and your voice profile.",
+        createdAt: new Date().toISOString(),
+      };
+      const withReply = {
+        ...updatedThread,
+        messages: [...updatedThread.messages, aiMessage],
+      };
+      saveChatThread(withReply);
+      setThreads((prev) =>
+        prev.map((t) => (t.id === withReply.id ? withReply : t))
+      );
+      setChatLoading(false);
+    }, 1000);
+  }
+
   if (!project) return null;
+
+  const activeThread = threads.find((t) => t.id === activeThreadId) || null;
 
   return (
     <div className="flex h-full flex-col">
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b border-stone-200 bg-white px-6 py-3">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-2.5">
+        <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-stone-500 hover:bg-stone-100 hover:text-stone-700"
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Library
           </Link>
           <div className="h-5 w-px bg-stone-200" />
-          <h2 className="text-sm font-semibold text-stone-900">{project.title}</h2>
-          <span className="text-xs text-stone-400">{FORMAT_LABELS[project.format]}</span>
+          <div>
+            <h2 className="text-sm font-semibold text-stone-900">
+              {project.title}
+            </h2>
+            <span className="text-xs text-stone-400">
+              {FORMAT_LABELS[project.format]}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={project.status}
-            onChange={(e) => handleStatusChange(e.target.value as ProjectStatus)}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_COLORS[project.status]} border-none focus:outline-none focus:ring-2 focus:ring-violet-500/20`}
-          >
-            {statuses.map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-            ))}
-          </select>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <select
+              value={project.status}
+              onChange={(e) =>
+                handleStatusChange(e.target.value as ProjectStatus)
+              }
+              className={`appearance-none rounded-full py-1 pl-3 pr-7 text-xs font-medium ${STATUS_COLORS[project.status]} border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/20`}
+            >
+              {statuses.map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 opacity-50" />
+          </div>
           <button
             onClick={handleSave}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -86,53 +232,28 @@ export default function WritePage() {
       {/* Main workspace */}
       <div className="flex flex-1 overflow-hidden">
         {/* Editor */}
-        <div className="flex-1 overflow-y-auto bg-white p-8">
-          <div className="mx-auto max-w-2xl">
-            <textarea
-              value={content}
-              onChange={(e) => {
-                setContent(e.target.value);
-                setSaved(false);
-              }}
-              placeholder="Start writing..."
-              className="min-h-[calc(100vh-200px)] w-full resize-none border-none text-base leading-relaxed text-stone-800 placeholder:text-stone-300 focus:outline-none"
-            />
-          </div>
+        <div className="flex-1 overflow-hidden">
+          <Editor
+            content={content}
+            onUpdate={handleContentUpdate}
+            placeholder={
+              project.format === "tweet"
+                ? "What's on your mind?"
+                : "Start writing..."
+            }
+          />
         </div>
 
-        {/* AI Chat Panel placeholder */}
-        <div className="w-96 border-l border-stone-200 bg-stone-50 flex flex-col">
-          <div className="border-b border-stone-200 px-4 py-3">
-            <h3 className="text-sm font-semibold text-stone-700">AI Assistant</h3>
-            <p className="text-xs text-stone-400">Ask for help with your writing</p>
-          </div>
-          <div className="flex-1 flex items-center justify-center p-6">
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100">
-                <span className="text-xl">✨</span>
-              </div>
-              <p className="mt-3 text-sm font-medium text-stone-600">AI chat coming soon</p>
-              <p className="mt-1 text-xs text-stone-400">
-                This panel will let you brainstorm, rewrite, and refine your piece with AI.
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-stone-200 p-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Ask the AI for help..."
-                disabled
-                className="flex-1 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm placeholder:text-stone-400 disabled:opacity-50"
-              />
-              <button
-                disabled
-                className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
-              >
-                Send
-              </button>
-            </div>
-          </div>
+        {/* AI Chat Panel */}
+        <div className="w-[380px] shrink-0">
+          <ChatPanel
+            threads={threads}
+            activeThread={activeThread}
+            onSendMessage={handleSendMessage}
+            onNewThread={createThread}
+            onSelectThread={setActiveThreadId}
+            isLoading={chatLoading}
+          />
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, MessageCircle, MessagesSquare, FileText, BookOpen } from "lucide-react";
 import { ProjectFormat } from "@/lib/types";
 
@@ -21,8 +22,13 @@ export default function NewProjectModal({ open, onClose, onCreate }: Props) {
   const [title, setTitle] = useState("");
   const [format, setFormat] = useState<ProjectFormat>("short-post");
   const [summary, setSummary] = useState("");
+  const [mounted, setMounted] = useState(false);
 
-  if (!open) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!open || !mounted) return null;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,7 +39,7 @@ export default function NewProjectModal({ open, onClose, onCreate }: Props) {
     setSummary("");
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
@@ -117,6 +123,7 @@ export default function NewProjectModal({ open, onClose, onCreate }: Props) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

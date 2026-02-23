@@ -1,65 +1,138 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { Plus, Search, Filter } from "lucide-react";
+import { v4 as uuidv4 } from "uuid";
+import { Project, ProjectFormat, ProjectStatus, STATUS_LABELS } from "@/lib/types";
+import { getProjects, saveProject } from "@/lib/store";
+import ProjectCard from "@/components/ProjectCard";
+import NewProjectModal from "@/components/NewProjectModal";
 
 export default function Home() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">("all");
+
+  useEffect(() => {
+    setProjects(getProjects());
+  }, []);
+
+  function handleCreate(title: string, format: ProjectFormat, summary: string) {
+    const now = new Date().toISOString();
+    const project: Project = {
+      id: uuidv4(),
+      title,
+      summary,
+      format,
+      status: "idea",
+      content: "",
+      tags: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    saveProject(project);
+    setProjects(getProjects());
+    setModalOpen(false);
+  }
+
+  const filtered = projects
+    .filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !p.summary.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const statusCounts = projects.reduce<Record<string, number>>((acc, p) => {
+    acc[p.status] = (acc[p.status] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="mx-auto max-w-5xl px-8 py-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-stone-900">Your Library</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            {projects.length === 0
+              ? "Start by creating your first piece"
+              : `${projects.length} piece${projects.length === 1 ? "" : "s"} in your library`}
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+        <button
+          onClick={() => setModalOpen(true)}
+          className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-700 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          New piece
+        </button>
+      </div>
+
+      {projects.length > 0 && (
+        <div className="mt-6 flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search your pieces..."
+              className="w-full rounded-lg border border-stone-200 bg-white py-2.5 pl-10 pr-4 text-sm text-stone-900 placeholder:text-stone-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Filter className="h-4 w-4 text-stone-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as ProjectStatus | "all")}
+              className="rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-600 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            >
+              <option value="all">All statuses</option>
+              {(Object.entries(STATUS_LABELS) as [ProjectStatus, string][]).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label} {statusCounts[value] ? `(${statusCounts[value]})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-      </main>
+      )}
+
+      {filtered.length > 0 ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+          ))}
+        </div>
+      ) : projects.length === 0 ? (
+        <div className="mt-16 flex flex-col items-center text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-100">
+            <Plus className="h-8 w-8 text-violet-600" />
+          </div>
+          <h3 className="mt-5 text-lg font-semibold text-stone-900">No pieces yet</h3>
+          <p className="mt-2 max-w-sm text-sm text-stone-500">
+            Create your first piece to get started. It can be a tweet, a blog post, a short story — whatever&apos;s on your mind.
+          </p>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="mt-6 flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Create your first piece
+          </button>
+        </div>
+      ) : (
+        <div className="mt-16 text-center">
+          <p className="text-sm text-stone-500">No pieces match your filters</p>
+        </div>
+      )}
+
+      <NewProjectModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreate={handleCreate}
+      />
     </div>
   );
 }

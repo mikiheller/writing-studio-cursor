@@ -19,6 +19,7 @@ import {
   saveProject,
   getProjectChatThreads,
   saveChatThread,
+  getVoiceProfile,
 } from "@/lib/store";
 import Editor from "@/components/Editor";
 import ChatPanel from "@/components/ChatPanel";
@@ -117,7 +118,7 @@ export default function WritePage() {
     setActiveThreadId(thread.id);
   }
 
-  function handleSendMessage(message: string) {
+  async function handleSendMessage(message: string) {
     if (!project) return;
 
     let thread = threads.find((t) => t.id === activeThreadId);
@@ -152,12 +153,34 @@ export default function WritePage() {
     );
 
     setChatLoading(true);
-    setTimeout(() => {
+
+    try {
+      const voiceProfile = getVoiceProfile();
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: updatedThread.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          draftContent: content,
+          projectFormat: project.format,
+          projectTitle: project.title,
+          voiceProfile,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to get response");
+      }
+
       const aiMessage: ChatMessage = {
         id: uuidv4(),
         role: "assistant",
-        content:
-          "AI integration coming soon! Once you add your API keys in settings, I'll be able to help you write, brainstorm, and edit. I'll have full context of your draft and your voice profile.",
+        content: data.content,
         createdAt: new Date().toISOString(),
       };
       const withReply = {
@@ -168,8 +191,25 @@ export default function WritePage() {
       setThreads((prev) =>
         prev.map((t) => (t.id === withReply.id ? withReply : t))
       );
+    } catch (error) {
+      console.error("Chat error:", error);
+      const errorMessage: ChatMessage = {
+        id: uuidv4(),
+        role: "assistant",
+        content: `Sorry, something went wrong: ${error instanceof Error ? error.message : "Unknown error"}`,
+        createdAt: new Date().toISOString(),
+      };
+      const withError = {
+        ...updatedThread,
+        messages: [...updatedThread.messages, errorMessage],
+      };
+      saveChatThread(withError);
+      setThreads((prev) =>
+        prev.map((t) => (t.id === withError.id ? withError : t))
+      );
+    } finally {
       setChatLoading(false);
-    }, 1000);
+    }
   }
 
   if (!project) return null;

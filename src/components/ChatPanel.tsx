@@ -29,13 +29,6 @@ export default function ChatPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeThread?.messages]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-    onSendMessage(input.trim());
-    setInput("");
-  }
-
   const messages = activeThread?.messages || [];
 
   return (
@@ -149,24 +142,40 @@ export default function ChatPanel({
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="border-t border-stone-200 bg-white p-3">
+      <div className="border-t border-stone-200 bg-white p-3">
         <div className="flex gap-2">
-          <input
-            type="text"
+          <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask the AI for help..."
-            className="flex-1 rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-800 placeholder:text-stone-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                if (input.trim() && !isLoading) {
+                  onSendMessage(input.trim());
+                  setInput("");
+                }
+              }
+            }}
+            placeholder="Ask the AI for help... (⌘+Enter to send)"
+            rows={3}
+            className="flex-1 rounded-lg border border-stone-200 px-3 py-2.5 text-sm text-stone-800 placeholder:text-stone-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none leading-relaxed"
           />
           <button
-            type="submit"
+            type="button"
+            onClick={() => {
+              if (input.trim() && !isLoading) {
+                onSendMessage(input.trim());
+                setInput("");
+              }
+            }}
             disabled={!input.trim() || isLoading}
-            className="rounded-lg bg-violet-600 px-3 py-2.5 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="self-end rounded-lg bg-violet-600 px-3 py-2.5 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Send className="h-4 w-4" />
           </button>
         </div>
-      </form>
+        <p className="mt-1.5 text-[11px] text-stone-400">⌘+Enter to send</p>
+      </div>
     </div>
   );
 }

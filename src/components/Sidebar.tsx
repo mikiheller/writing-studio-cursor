@@ -57,9 +57,9 @@ export default function Sidebar() {
 
       <div className="border-t border-stone-800 px-4 py-4">
         <div className="flex items-center gap-2 rounded-lg bg-stone-800/60 px-3 py-2.5">
-          <Sparkles className="h-4 w-4 text-violet-400" />
+          <Sparkles className="h-4 w-4 text-emerald-400" />
           <span className="text-xs text-stone-400">
-            AI ready — add API keys in settings
+            AI connected (GPT-5.2)
           </span>
         </div>
       </div>

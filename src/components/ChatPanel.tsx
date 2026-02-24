@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, Plus, MessageSquare } from "lucide-react";
+import {
+  Send,
+  Sparkles,
+  Plus,
+  MessageSquare,
+  ClipboardCopy,
+  ArrowDownToLine,
+  Replace,
+  Check,
+} from "lucide-react";
 import { ChatMessage, ChatThread } from "@/lib/types";
 
 interface ChatPanelProps {
@@ -10,6 +19,8 @@ interface ChatPanelProps {
   onSendMessage: (message: string) => void;
   onNewThread: (name?: string) => void;
   onSelectThread: (threadId: string) => void;
+  onInsertToEditor: (text: string) => void;
+  onReplaceEditor: (text: string) => void;
   isLoading?: boolean;
 }
 
@@ -19,6 +30,8 @@ export default function ChatPanel({
   onSendMessage,
   onNewThread,
   onSelectThread,
+  onInsertToEditor,
+  onReplaceEditor,
   isLoading,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
@@ -120,7 +133,12 @@ export default function ChatPanel({
         ) : (
           <div className="space-y-4">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                onInsert={onInsertToEditor}
+                onReplace={onReplaceEditor}
+              />
             ))}
             {isLoading && (
               <div className="flex items-start gap-2.5">
@@ -180,11 +198,26 @@ export default function ChatPanel({
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({
+  message,
+  onInsert,
+  onReplace,
+}: {
+  message: ChatMessage;
+  onInsert: (text: string) => void;
+  onReplace: (text: string) => void;
+}) {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   return (
-    <div className={`flex items-start gap-2.5 ${isUser ? "flex-row-reverse" : ""}`}>
+    <div className={`group flex items-start gap-2.5 ${isUser ? "flex-row-reverse" : ""}`}>
       <div
         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
           isUser ? "bg-stone-200" : "bg-violet-100"
@@ -196,14 +229,45 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <Sparkles className="h-3.5 w-3.5 text-violet-600" />
         )}
       </div>
-      <div
-        className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
-          isUser
-            ? "rounded-tr-none bg-violet-600 text-white"
-            : "rounded-tl-none bg-white text-stone-700 shadow-sm border border-stone-100"
-        }`}
-      >
-        <div className="whitespace-pre-wrap">{message.content}</div>
+      <div className="flex-1 min-w-0">
+        <div
+          className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
+            isUser
+              ? "rounded-tr-none bg-violet-600 text-white ml-8"
+              : "rounded-tl-none bg-white text-stone-700 shadow-sm border border-stone-100"
+          }`}
+        >
+          <div className="whitespace-pre-wrap">{message.content}</div>
+        </div>
+
+        {!isUser && (
+          <div className="mt-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => onInsert(message.content)}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-stone-500 hover:bg-violet-50 hover:text-violet-600 transition-colors"
+              title="Append this text to the end of your draft"
+            >
+              <ArrowDownToLine className="h-3 w-3" />
+              Insert into draft
+            </button>
+            <button
+              onClick={() => onReplace(message.content)}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-stone-500 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+              title="Replace your entire draft with this text"
+            >
+              <Replace className="h-3 w-3" />
+              Replace draft
+            </button>
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-600 transition-colors"
+              title="Copy to clipboard"
+            >
+              {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <ClipboardCopy className="h-3 w-3" />}
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -21,7 +21,6 @@ interface Props {
 export default function NewProjectModal({ open, onClose, onCreate }: Props) {
   const [title, setTitle] = useState("");
   const [format, setFormat] = useState<ProjectFormat>("short-post");
-  const [summary, setSummary] = useState("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -33,10 +32,9 @@ export default function NewProjectModal({ open, onClose, onCreate }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onCreate(title.trim(), format, summary.trim());
+    onCreate(title.trim(), format, "");
     setTitle("");
     setFormat("short-post");
-    setSummary("");
   }
 
   return createPortal(
@@ -51,21 +49,9 @@ export default function NewProjectModal({ open, onClose, onCreate }: Props) {
         </button>
 
         <h2 className="text-xl font-semibold text-stone-900">New piece</h2>
-        <p className="mt-1 text-sm text-stone-500">What do you want to write?</p>
+        <p className="mt-1 text-sm text-stone-500">Pick a format and give it a working name.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-stone-700">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Why GLP-1s are the diet of honesty"
-              className="mt-1.5 w-full rounded-lg border border-stone-200 px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
-              autoFocus
-            />
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-stone-700">Format</label>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -93,15 +79,15 @@ export default function NewProjectModal({ open, onClose, onCreate }: Props) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-stone-700">
-              Quick notes <span className="font-normal text-stone-400">(optional)</span>
-            </label>
-            <textarea
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="Jot down your initial idea, angle, or key points..."
-              rows={3}
-              className="mt-1.5 w-full rounded-lg border border-stone-200 px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none"
+            <label className="block text-sm font-medium text-stone-700">Working name</label>
+            <p className="mt-0.5 text-xs text-stone-400">Just for you — call it whatever helps you remember it</p>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. GLP-1 thing, noodle cup tweet, that dog story"
+              className="mt-1.5 w-full rounded-lg border border-stone-200 px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+              autoFocus
             />
           </div>
 
@@ -118,7 +104,7 @@ export default function NewProjectModal({ open, onClose, onCreate }: Props) {
               disabled={!title.trim()}
               className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Create
+              Start writing
             </button>
           </div>
         </form>

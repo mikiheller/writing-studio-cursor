@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         })),
       ],
       temperature: 0.7,
-      max_tokens: 2048,
+      max_completion_tokens: 2048,
     });
 
     const reply = response.choices[0]?.message?.content || "Sorry, I couldn't generate a response.";

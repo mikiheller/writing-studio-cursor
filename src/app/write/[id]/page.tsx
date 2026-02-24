@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { ArrowLeft, Save, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { v4 as uuidv4 } from "uuid";
@@ -21,7 +21,7 @@ import {
   saveChatThread,
   getVoiceProfile,
 } from "@/lib/store";
-import Editor from "@/components/Editor";
+import Editor, { EditorHandle } from "@/components/Editor";
 import ChatPanel from "@/components/ChatPanel";
 
 const statuses: ProjectStatus[] = [
@@ -41,6 +41,7 @@ export default function WritePage() {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
+  const editorRef = useRef<EditorHandle>(null);
 
   useEffect(() => {
     const p = getProject(params.id as string);
@@ -274,6 +275,7 @@ export default function WritePage() {
         {/* Editor */}
         <div className="flex-1 overflow-hidden">
           <Editor
+            ref={editorRef}
             content={content}
             onUpdate={handleContentUpdate}
             placeholder={
@@ -292,6 +294,14 @@ export default function WritePage() {
             onSendMessage={handleSendMessage}
             onNewThread={createThread}
             onSelectThread={setActiveThreadId}
+            onInsertToEditor={(text) => {
+              editorRef.current?.insertAtEnd(text);
+              setSaved(false);
+            }}
+            onReplaceEditor={(text) => {
+              editorRef.current?.replaceAll(text);
+              setSaved(false);
+            }}
             isLoading={chatLoading}
           />
         </div>

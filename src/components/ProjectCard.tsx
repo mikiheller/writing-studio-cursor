@@ -7,6 +7,7 @@ import {
   FileText,
   BookOpen,
   Clock,
+  Trash2,
 } from "lucide-react";
 import {
   Project,
@@ -38,12 +39,19 @@ function timeAgo(dateString: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export default function ProjectCard({ project }: { project: Project }) {
+interface ProjectCardProps {
+  project: Project;
+  onDelete: (id: string) => void;
+}
+
+export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
   const Icon = formatIcons[project.format];
 
   return (
-    <Link href={`/write/${project.id}`}>
-      <div className="group rounded-xl border border-stone-200 bg-white p-5 transition-all hover:border-stone-300 hover:shadow-md">
+    <div className="group relative rounded-xl border border-stone-200 bg-white p-5 transition-all hover:border-stone-300 hover:shadow-md">
+      <Link href={`/write/${project.id}`} className="absolute inset-0 z-0" />
+
+      <div className="relative z-10 pointer-events-none">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-100 text-stone-500 group-hover:bg-violet-50 group-hover:text-violet-600 transition-colors">
@@ -53,11 +61,26 @@ export default function ProjectCard({ project }: { project: Project }) {
               {FORMAT_LABELS[project.format]}
             </span>
           </div>
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[project.status]}`}
-          >
-            {STATUS_LABELS[project.status]}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[project.status]}`}
+            >
+              {STATUS_LABELS[project.status]}
+            </span>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (confirm(`Delete "${project.title}"? This can't be undone.`)) {
+                  onDelete(project.id);
+                }
+              }}
+              className="pointer-events-auto rounded-md p-1 text-stone-300 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 transition-all"
+              title="Delete project"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         <h3 className="mt-3 text-base font-semibold text-stone-900 group-hover:text-violet-700 transition-colors">
@@ -89,6 +112,6 @@ export default function ProjectCard({ project }: { project: Project }) {
           )}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

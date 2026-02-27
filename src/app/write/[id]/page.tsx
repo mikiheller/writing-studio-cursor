@@ -109,6 +109,18 @@ export default function WritePage() {
     return () => window.removeEventListener("keydown", handler);
   }, [handleSave, project]);
 
+  // Auto-save every 30s if there are unsaved changes
+  useEffect(() => {
+    if (!project || saved || previewingVersionId) return;
+    const timer = setTimeout(() => {
+      const updated = { ...project, content, updatedAt: new Date().toISOString() };
+      saveProject(updated);
+      setProject(updated);
+      setSaved(true);
+    }, 30000);
+    return () => clearTimeout(timer);
+  }, [project, content, saved, previewingVersionId]);
+
   function handleContentUpdate(html: string) {
     setContent(html);
     setSaved(false);
@@ -390,10 +402,13 @@ export default function WritePage() {
             ref={editorRef}
             content={content}
             onUpdate={handleContentUpdate}
+            format={project.format}
             placeholder={
               project.format === "tweet"
                 ? "What's on your mind?"
-                : "Start writing..."
+                : project.format === "thread"
+                  ? "First tweet in your thread..."
+                  : "Start writing..."
             }
           />
         </div>

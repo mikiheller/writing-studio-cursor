@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Search, Filter } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { Project, ProjectFormat, ProjectStatus, STATUS_LABELS } from "@/lib/types";
-import { getProjects, saveProject } from "@/lib/store";
+import { getProjects, saveProject, deleteProject } from "@/lib/store";
 import ProjectCard from "@/components/ProjectCard";
 import NewProjectModal from "@/components/NewProjectModal";
 
@@ -102,7 +102,14 @@ export default function Home() {
       {filtered.length > 0 ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onDelete={(id) => {
+                deleteProject(id);
+                setProjects(getProjects());
+              }}
+            />
           ))}
         </div>
       ) : projects.length === 0 ? (

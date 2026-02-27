@@ -176,28 +176,9 @@ export default function SettingsPage() {
         <section className="rounded-xl border border-stone-200 bg-stone-50 p-5">
           <label className="block text-sm font-semibold text-stone-800">API Keys</label>
           <p className="mt-1 text-xs text-stone-500">
-            Coming soon — you&apos;ll add your OpenAI and Anthropic keys here to power the AI assistant.
+            API keys are configured in the server&apos;s <code className="rounded bg-stone-200 px-1 py-0.5 text-[11px]">.env.local</code> file for security.
+            Currently using <span className="font-medium text-emerald-600">OpenAI GPT-5.2</span>.
           </p>
-          <div className="mt-3 space-y-3 opacity-50">
-            <div>
-              <label className="text-xs font-medium text-stone-600">OpenAI API Key</label>
-              <input
-                type="password"
-                disabled
-                placeholder="sk-..."
-                className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-stone-600">Anthropic API Key</label>
-              <input
-                type="password"
-                disabled
-                placeholder="sk-ant-..."
-                className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
         </section>
       </div>
     </div>

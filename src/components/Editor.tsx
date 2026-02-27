@@ -22,6 +22,7 @@ interface EditorProps {
   content: string;
   onUpdate: (content: string) => void;
   placeholder?: string;
+  format?: "tweet" | "thread" | "short-post" | "long-post";
 }
 
 export interface EditorHandle {
@@ -29,8 +30,15 @@ export interface EditorHandle {
   replaceAll: (text: string) => void;
 }
 
+const FORMAT_GUIDANCE: Record<string, { charLimit?: number; wordTarget?: string; label: string }> = {
+  tweet: { charLimit: 280, label: "Tweet" },
+  thread: { wordTarget: "100-200 per tweet", label: "Thread" },
+  "short-post": { wordTarget: "300-800", label: "Short Post" },
+  "long-post": { wordTarget: "1000+", label: "Long Post" },
+};
+
 const Editor = forwardRef<EditorHandle, EditorProps>(
-  function Editor({ content, onUpdate, placeholder }, ref) {
+  function Editor({ content, onUpdate, placeholder, format }, ref) {
     const editor = useEditor({
       immediatelyRender: false,
       extensions: [
@@ -193,9 +201,23 @@ const Editor = forwardRef<EditorHandle, EditorProps>(
             <Redo className="h-4 w-4" />
           </ToolbarButton>
 
-          <div className="ml-auto flex items-center gap-3 text-xs text-stone-400">
-            <span>{words} words</span>
-            <span>{chars} chars</span>
+          <div className="ml-auto flex items-center gap-3 text-xs">
+            {format === "tweet" && (
+              <span className={chars > 280 ? "font-medium text-red-500" : chars > 250 ? "text-amber-500" : "text-stone-400"}>
+                {chars}/280
+              </span>
+            )}
+            {format !== "tweet" && (
+              <>
+                <span className="text-stone-400">{words} words</span>
+                {format && FORMAT_GUIDANCE[format]?.wordTarget && (
+                  <span className="text-stone-300">target: {FORMAT_GUIDANCE[format].wordTarget}</span>
+                )}
+              </>
+            )}
+            {format === "tweet" && (
+              <span className="text-stone-400">{words} words</span>
+            )}
           </div>
         </div>
 

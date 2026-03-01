@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient() {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 interface VoiceProfile {
   generalStyle: string;
@@ -101,6 +103,7 @@ export async function POST(request: NextRequest) {
       voiceProfile
     );
 
+    const openai = getOpenAIClient();
     const response = await openai.chat.completions.create({
       model: "gpt-5.2",
       messages: [

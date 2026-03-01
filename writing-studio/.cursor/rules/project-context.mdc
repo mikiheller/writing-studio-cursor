@@ -1,0 +1,15 @@
+---
+description: Project context and roadmap for Writing Studio
+globs: **/*
+alwaysApply: true
+---
+
+# Writing Studio — Agent Instructions
+
+At the **very beginning** of every new conversation about this project:
+
+1. Read `ROADMAP.md` in the project root
+2. Briefly remind the user what's on the roadmap (keep it to a few bullet points)
+3. Ask if they want to work on any of those items in this session
+
+This ensures continuity across sessions and avoids re-explaining context.

@@ -1,108 +1,84 @@
 import { Project, VoiceProfile, Version, ChatThread } from "./types";
 
-const STORAGE_KEYS = {
-  projects: "writing-studio-projects",
-  voiceProfile: "writing-studio-voice-profile",
-  versions: "writing-studio-versions",
-  chatThreads: "writing-studio-chat-threads",
-} as const;
+const API_BASE = "/api";
 
-function getFromStorage<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getProjects(): Promise<Project[]> {
+  return fetchJson<Project[]>(`${API_BASE}/projects`);
+}
+
+export async function getProject(id: string): Promise<Project | undefined> {
   try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : fallback;
+    return await fetchJson<Project>(`${API_BASE}/projects/${id}`);
   } catch {
-    return fallback;
+    return undefined;
   }
 }
 
-function setToStorage<T>(key: string, value: T): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-export function getProjects(): Project[] {
-  return getFromStorage<Project[]>(STORAGE_KEYS.projects, []);
-}
-
-export function saveProjects(projects: Project[]): void {
-  setToStorage(STORAGE_KEYS.projects, projects);
-}
-
-export function getProject(id: string): Project | undefined {
-  return getProjects().find((p) => p.id === id);
-}
-
-export function saveProject(project: Project): void {
-  const projects = getProjects();
-  const index = projects.findIndex((p) => p.id === project.id);
-  if (index >= 0) {
-    projects[index] = project;
-  } else {
-    projects.push(project);
-  }
-  saveProjects(projects);
-}
-
-export function deleteProject(id: string): void {
-  const projects = getProjects().filter((p) => p.id !== id);
-  saveProjects(projects);
-  const versions = getVersions().filter((v) => v.projectId !== id);
-  setToStorage(STORAGE_KEYS.versions, versions);
-  const threads = getChatThreads().filter((t) => t.projectId !== id);
-  setToStorage(STORAGE_KEYS.chatThreads, threads);
-}
-
-export function getVoiceProfile(): VoiceProfile {
-  return getFromStorage<VoiceProfile>(STORAGE_KEYS.voiceProfile, {
-    generalStyle: "",
-    tweetStyle: "",
-    longFormStyle: "",
-    exampleWriting: "",
-    topics: [],
-    personality: "",
+export async function saveProject(project: Project): Promise<void> {
+  await fetchJson(`${API_BASE}/projects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(project),
   });
 }
 
-export function saveVoiceProfile(profile: VoiceProfile): void {
-  setToStorage(STORAGE_KEYS.voiceProfile, profile);
+export async function saveProjects(projects: Project[]): Promise<void> {
+  await Promise.all(projects.map((p) => saveProject(p)));
 }
 
-export function getVersions(): Version[] {
-  return getFromStorage<Version[]>(STORAGE_KEYS.versions, []);
+export async function deleteProject(id: string): Promise<void> {
+  await fetchJson(`${API_BASE}/projects/${id}`, { method: "DELETE" });
 }
 
-export function getProjectVersions(projectId: string): Version[] {
-  return getVersions()
-    .filter((v) => v.projectId === projectId)
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+export async function getVoiceProfile(): Promise<VoiceProfile> {
+  return fetchJson<VoiceProfile>(`${API_BASE}/voice-profile`);
 }
 
-export function saveVersion(version: Version): void {
-  const versions = getVersions();
-  versions.push(version);
-  setToStorage(STORAGE_KEYS.versions, versions);
+export async function saveVoiceProfile(profile: VoiceProfile): Promise<void> {
+  await fetchJson(`${API_BASE}/voice-profile`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
 }
 
-export function getChatThreads(): ChatThread[] {
-  return getFromStorage<ChatThread[]>(STORAGE_KEYS.chatThreads, []);
+export async function getVersions(): Promise<Version[]> {
+  return fetchJson<Version[]>(`${API_BASE}/versions`);
 }
 
-export function getProjectChatThreads(projectId: string): ChatThread[] {
-  return getChatThreads().filter((t) => t.projectId === projectId);
+export async function getProjectVersions(projectId: string): Promise<Version[]> {
+  return fetchJson<Version[]>(`${API_BASE}/versions?projectId=${projectId}`);
 }
 
-export function saveChatThread(thread: ChatThread): void {
-  const threads = getChatThreads();
-  const index = threads.findIndex((t) => t.id === thread.id);
-  if (index >= 0) {
-    threads[index] = thread;
-  } else {
-    threads.push(thread);
-  }
-  setToStorage(STORAGE_KEYS.chatThreads, threads);
+export async function saveVersion(version: Version): Promise<void> {
+  await fetchJson(`${API_BASE}/versions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(version),
+  });
+}
+
+export async function getChatThreads(): Promise<ChatThread[]> {
+  return fetchJson<ChatThread[]>(`${API_BASE}/chat-threads`);
+}
+
+export async function getProjectChatThreads(projectId: string): Promise<ChatThread[]> {
+  return fetchJson<ChatThread[]>(`${API_BASE}/chat-threads?projectId=${projectId}`);
+}
+
+export async function saveChatThread(thread: ChatThread): Promise<void> {
+  await fetchJson(`${API_BASE}/chat-threads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(thread),
+  });
 }

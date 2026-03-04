@@ -16,13 +16,17 @@ export default function SettingsPage() {
   });
   const [topicInput, setTopicInput] = useState("");
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setProfile(getVoiceProfile());
+    getVoiceProfile().then((data) => {
+      setProfile(data);
+      setLoading(false);
+    });
   }, []);
 
-  function handleSave() {
-    saveVoiceProfile(profile);
+  async function handleSave() {
+    await saveVoiceProfile(profile);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -37,6 +41,16 @@ export default function SettingsPage() {
 
   function removeTopic(topic: string) {
     setProfile({ ...profile, topics: profile.topics.filter((t) => t !== topic) });
+  }
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-2xl px-8 py-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
+        </div>
+      </div>
+    );
   }
 
   return (

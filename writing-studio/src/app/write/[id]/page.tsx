@@ -23,7 +23,6 @@ import {
   getVoiceProfile,
   getProjectVersions,
   saveVersion,
-  getVersions,
 } from "@/lib/store";
 import Editor, { EditorHandle } from "@/components/Editor";
 import ChatPanel from "@/components/ChatPanel";
@@ -47,6 +46,7 @@ export default function WritePage() {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
   const editorRef = useRef<EditorHandle>(null);
+  const [loading, setLoading] = useState(true);
 
   const [versions, setVersions] = useState<Version[]>([]);
   const [showVersions, setShowVersions] = useState(false);
@@ -54,26 +54,30 @@ export default function WritePage() {
   const [contentBeforePreview, setContentBeforePreview] = useState<string | null>(null);
 
   useEffect(() => {
-    const p = getProject(params.id as string);
-    if (!p) {
-      router.push("/");
-      return;
-    }
-    setProject(p);
-    setContent(p.content);
+    async function load() {
+      const p = await getProject(params.id as string);
+      if (!p) {
+        router.push("/");
+        return;
+      }
+      setProject(p);
+      setContent(p.content);
 
-    const projectThreads = getProjectChatThreads(p.id);
-    setThreads(projectThreads);
-    if (projectThreads.length > 0) {
-      setActiveThreadId(projectThreads[0].id);
-    }
+      const projectThreads = await getProjectChatThreads(p.id);
+      setThreads(projectThreads);
+      if (projectThreads.length > 0) {
+        setActiveThreadId(projectThreads[0].id);
+      }
 
-    setVersions(getProjectVersions(p.id));
+      const projectVersions = await getProjectVersions(p.id);
+      setVersions(projectVersions);
+      setLoading(false);
+    }
+    load();
   }, [params.id, router]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!project) return;
-
     if (previewingVersionId) return;
 
     const updated = {
@@ -81,20 +85,21 @@ export default function WritePage() {
       content,
       updatedAt: new Date().toISOString(),
     };
-    saveProject(updated);
+    await saveProject(updated);
     setProject(updated);
     setSaved(true);
 
-    const versionCount = getProjectVersions(project.id).length;
+    const currentVersions = await getProjectVersions(project.id);
     const version: Version = {
       id: uuidv4(),
       projectId: project.id,
       content,
-      name: `Version ${versionCount + 1}`,
+      name: `Version ${currentVersions.length + 1}`,
       createdAt: new Date().toISOString(),
     };
-    saveVersion(version);
-    setVersions(getProjectVersions(project.id));
+    await saveVersion(version);
+    const updatedVersions = await getProjectVersions(project.id);
+    setVersions(updatedVersions);
   }, [project, content, previewingVersionId]);
 
   useEffect(() => {
@@ -109,19 +114,18 @@ export default function WritePage() {
     return () => window.removeEventListener("keydown", handler);
   }, [handleSave, project]);
 
-  // Auto-save every 30s if there are unsaved changes
   useEffect(() => {
     if (!project || saved || previewingVersionId) return;
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       const updated = { ...project, content, updatedAt: new Date().toISOString() };
-      saveProject(updated);
+      await saveProject(updated);
       setProject(updated);
       setSaved(true);
     }, 30000);
     return () => clearTimeout(timer);
   }, [project, content, saved, previewingVersionId]);
 
-  function handleContentUpdate(html: string) {
+  async function handleContentUpdate(html: string) {
     setContent(html);
     setSaved(false);
     if (project && project.status === "idea") {
@@ -130,15 +134,15 @@ export default function WritePage() {
         status: "drafting" as ProjectStatus,
         updatedAt: new Date().toISOString(),
       };
-      saveProject(updated);
+      await saveProject(updated);
       setProject(updated);
     }
   }
 
-  function handleStatusChange(status: ProjectStatus) {
+  async function handleStatusChange(status: ProjectStatus) {
     if (!project) return;
     const updated = { ...project, status, updatedAt: new Date().toISOString() };
-    saveProject(updated);
+    await saveProject(updated);
     setProject(updated);
   }
 
@@ -166,19 +170,17 @@ export default function WritePage() {
     setSaved(false);
   }
 
-  function handleRenameVersion(versionId: string, name: string) {
-    const allVersions = getVersions();
-    const idx = allVersions.findIndex((v) => v.id === versionId);
-    if (idx >= 0) {
-      allVersions[idx] = { ...allVersions[idx], name };
-      localStorage.setItem("writing-studio-versions", JSON.stringify(allVersions));
-      if (project) {
-        setVersions(getProjectVersions(project.id));
-      }
+  async function handleRenameVersion(versionId: string, name: string) {
+    const currentVersions = await getProjectVersions(project!.id);
+    const version = currentVersions.find((v) => v.id === versionId);
+    if (version) {
+      await saveVersion({ ...version, name });
+      const updatedVersions = await getProjectVersions(project!.id);
+      setVersions(updatedVersions);
     }
   }
 
-  function createThread(name?: string) {
+  async function createThread(name?: string) {
     if (!project) return;
     const thread: ChatThread = {
       id: uuidv4(),
@@ -187,7 +189,7 @@ export default function WritePage() {
       messages: [],
       createdAt: new Date().toISOString(),
     };
-    saveChatThread(thread);
+    await saveChatThread(thread);
     const updated = [...threads, thread];
     setThreads(updated);
     setActiveThreadId(thread.id);
@@ -205,7 +207,7 @@ export default function WritePage() {
         messages: [],
         createdAt: new Date().toISOString(),
       };
-      saveChatThread(newThread);
+      await saveChatThread(newThread);
       setThreads((prev) => [...prev, newThread]);
       setActiveThreadId(newThread.id);
       thread = newThread;
@@ -222,7 +224,7 @@ export default function WritePage() {
       ...thread,
       messages: [...thread.messages, userMessage],
     };
-    saveChatThread(updatedThread);
+    await saveChatThread(updatedThread);
     setThreads((prev) =>
       prev.map((t) => (t.id === updatedThread.id ? updatedThread : t))
     );
@@ -230,7 +232,7 @@ export default function WritePage() {
     setChatLoading(true);
 
     try {
-      const voiceProfile = getVoiceProfile();
+      const voiceProfile = await getVoiceProfile();
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -262,7 +264,7 @@ export default function WritePage() {
         ...updatedThread,
         messages: [...updatedThread.messages, aiMessage],
       };
-      saveChatThread(withReply);
+      await saveChatThread(withReply);
       setThreads((prev) =>
         prev.map((t) => (t.id === withReply.id ? withReply : t))
       );
@@ -278,13 +280,21 @@ export default function WritePage() {
         ...updatedThread,
         messages: [...updatedThread.messages, errorMessage],
       };
-      saveChatThread(withError);
+      await saveChatThread(withError);
       setThreads((prev) =>
         prev.map((t) => (t.id === withError.id ? withError : t))
       );
     } finally {
       setChatLoading(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
+      </div>
+    );
   }
 
   if (!project) return null;

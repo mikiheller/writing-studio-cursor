@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, Search, Filter } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { Project, ProjectFormat, ProjectStatus, STATUS_LABELS } from "@/lib/types";
@@ -13,12 +13,19 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">("all");
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setProjects(getProjects());
+  const loadProjects = useCallback(async () => {
+    const data = await getProjects();
+    setProjects(data);
+    setLoading(false);
   }, []);
 
-  function handleCreate(title: string, format: ProjectFormat, summary: string) {
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  async function handleCreate(title: string, format: ProjectFormat, summary: string) {
     const now = new Date().toISOString();
     const project: Project = {
       id: uuidv4(),
@@ -31,9 +38,14 @@ export default function Home() {
       createdAt: now,
       updatedAt: now,
     };
-    saveProject(project);
-    setProjects(getProjects());
+    await saveProject(project);
+    await loadProjects();
     setModalOpen(false);
+  }
+
+  async function handleDelete(id: string) {
+    await deleteProject(id);
+    await loadProjects();
   }
 
   const filtered = projects
@@ -48,6 +60,16 @@ export default function Home() {
     acc[p.status] = (acc[p.status] || 0) + 1;
     return acc;
   }, {});
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-5xl px-8 py-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-8 py-8">
@@ -105,10 +127,7 @@ export default function Home() {
             <ProjectCard
               key={project.id}
               project={project}
-              onDelete={(id) => {
-                deleteProject(id);
-                setProjects(getProjects());
-              }}
+              onDelete={handleDelete}
             />
           ))}
         </div>
